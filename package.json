@@ -28,5 +28,20 @@
   "peerDependencies": {
     "openclaw": "*"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/misterflop/openclaw-plugin-plakar.git"
+  },
+  "author": "",
+  "bugs": {
+    "url": "https://github.com/misterflop/openclaw-plugin-plakar/issues"
+  },
+  "homepage": "https://github.com/misterflop/openclaw-plugin-plakar#readme"
 }
