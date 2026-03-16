@@ -1,6 +1,7 @@
 {
   "id": "openclaw-plugin-plakar",
   "name": "Plakar Backup",
+  "skills": ["skills/plakar-backup"],
   "configSchema": {
     "type": "object",
     "properties": {
