@@ -1,6 +1,11 @@
 import { execSync } from "node:child_process";
 
 const SNAPSHOT_TRIGGER_PREFIXES = [
+  "write",
+  "delete",
+  "move",
+  "exec",
+  // Legacy / future fs.* namespaced variants
   "fs.write",
   "fs.delete",
   "fs.move",
