@@ -22,7 +22,7 @@ function makeSnapshotHandler(store, api) {
     const paths = api.pluginConfig?.paths ?? [];
     const timeout = api.pluginConfig?.timeout ?? 15000;
     const targets = paths.length ? paths : [process.cwd()];
-    const cmd = `plakar -no-agent at ${store} backup ${targets.join(" ")}`;
+    const cmd = `plakar -no-agent -quiet at ${store} backup -no-xattr ${targets.join(" ")}`;
 
     try {
       const stdout = execSync(cmd, { timeout, stdio: "pipe" }).toString().trim();
