@@ -2,6 +2,10 @@ import { execSync } from "node:child_process";
 import type { HookHandler } from "openclaw/plugin-sdk";
 
 const SNAPSHOT_TRIGGER_PREFIXES = [
+  "write",
+  "delete",
+  "move",
+  "exec",
   "fs.write",
   "fs.delete",
   "fs.move",
@@ -15,22 +19,28 @@ interface ToolCallContext {
 }
 
 const handler: HookHandler<ToolCallContext> = async (ctx, api) => {
-  // Filter: only snapshot on mutating / shell-executing tools
   const shouldSnapshot = SNAPSHOT_TRIGGER_PREFIXES.some((prefix) =>
     ctx.toolName.startsWith(prefix)
   );
   if (!shouldSnapshot) return;
 
-  const store = (api as any).pluginConfig?.store as string;
-  const paths = ((api as any).pluginConfig?.paths as string[] | undefined) ?? [];
-  const timeout = ((api as any).pluginConfig?.timeout as number | undefined) ?? 15000;
+  const config = (api as any).pluginConfig ?? {};
+  const storeRef = config._storeRef ?? config.location ?? config.store;
+  if (!storeRef) return;
+
+  const paths = (config.paths as string[] | undefined) ?? [];
+  const timeout = (config.timeout as number | undefined) ?? 15000;
+  const passphrase = config.passphrase as string | undefined;
 
   const targets = paths.length ? paths : [process.cwd()];
-  const cmd = `plakar at ${store} backup ${targets.join(" ")}`;
+  const cmd = `plakar -no-agent -quiet at ${storeRef} backup -no-xattr ${targets.join(" ")}`;
+
+  const env = passphrase
+    ? { ...process.env, PLAKAR_PASSPHRASE: passphrase }
+    : undefined;
 
   try {
-    const stdout = execSync(cmd, { timeout, stdio: "pipe" }).toString().trim();
-    // Plakar prints the snapshot ID as the first token of its output line
+    const stdout = execSync(cmd, { timeout, stdio: "pipe", env }).toString().trim();
     const snapshotId = stdout.split(/\s+/)[0] ?? "(unknown)";
     api.logger.info(`[plakar] snapshot ${snapshotId} (${ctx.toolName})`);
   } catch (err) {

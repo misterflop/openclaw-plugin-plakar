@@ -3,10 +3,36 @@
   "name": "Plakar Backup",
   "skills": ["skills/plakar-backup"],
   "uiHints": {
-    "store": {
-      "label": "Plakar Store",
+    "location": {
+      "label": "Store Location",
       "help": "Plakar store path or URL (e.g. /plakar-store or s3://bucket/prefix)",
       "placeholder": "/plakar-store"
+    },
+    "passphrase": {
+      "label": "Encryption Passphrase",
+      "help": "Passphrase used to encrypt snapshots. Leave empty for unencrypted stores.",
+      "sensitive": true
+    },
+    "s3AccessKey": {
+      "label": "S3 / MinIO Access Key",
+      "help": "Access key for S3 or MinIO stores. Leave empty for local stores.",
+      "advanced": true
+    },
+    "s3SecretKey": {
+      "label": "S3 / MinIO Secret Key",
+      "help": "Secret key for S3 or MinIO stores.",
+      "sensitive": true,
+      "advanced": true
+    },
+    "s3UseTls": {
+      "label": "Use TLS",
+      "help": "Enable TLS for S3 / MinIO connections. Default: true.",
+      "advanced": true
+    },
+    "s3StorageClass": {
+      "label": "S3 Storage Class",
+      "help": "S3 storage class (e.g. STANDARD, STANDARD_IA, GLACIER). Leave empty for default.",
+      "advanced": true
     },
     "paths": {
       "label": "Snapshot Paths",
@@ -22,9 +48,30 @@
   "configSchema": {
     "type": "object",
     "properties": {
-      "store": {
+      "location": {
         "type": "string",
         "description": "Plakar store path or URL (e.g. /data/plakar-store or s3://bucket/prefix)"
+      },
+      "passphrase": {
+        "type": "string",
+        "description": "Encryption passphrase for the store. Passed via PLAKAR_PASSPHRASE env var."
+      },
+      "s3AccessKey": {
+        "type": "string",
+        "description": "S3 / MinIO access key"
+      },
+      "s3SecretKey": {
+        "type": "string",
+        "description": "S3 / MinIO secret key"
+      },
+      "s3UseTls": {
+        "type": "boolean",
+        "description": "Enable TLS for S3 / MinIO connections",
+        "default": true
+      },
+      "s3StorageClass": {
+        "type": "string",
+        "description": "S3 storage class (e.g. STANDARD, STANDARD_IA, GLACIER)"
       },
       "paths": {
         "type": "array",

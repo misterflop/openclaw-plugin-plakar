@@ -6,13 +6,13 @@ import { execSync } from "node:child_process";
 // Minimal mock of the OpenClaw plugin API
 // ---------------------------------------------------------------------------
 
-function makeApi({ store = "", paths = [], timeout = 15000 } = {}) {
+function makeApi({ location = "", paths = [], timeout = 15000, passphrase = "", s3AccessKey = "", s3SecretKey = "" } = {}) {
   const warnings = [];
   const infos = [];
   const hooks = [];
 
   return {
-    pluginConfig: { store, paths, timeout },
+    pluginConfig: { location, paths, timeout, passphrase, s3AccessKey, s3SecretKey },
     logger: {
       warn(msg) { warnings.push(msg); },
       info(msg) { infos.push(msg); },
@@ -21,8 +21,6 @@ function makeApi({ store = "", paths = [], timeout = 15000 } = {}) {
     on(event, handler, opts) {
       hooks.push({ event, handler, opts });
     },
-    // registerPluginHooksFromDir is a no-op in unit tests;
-    // we test the handler directly
     _warnings: warnings,
     _infos: infos,
     _hooks: hooks,
@@ -30,10 +28,14 @@ function makeApi({ store = "", paths = [], timeout = 15000 } = {}) {
 }
 
 // ---------------------------------------------------------------------------
-// Snapshot of the SNAPSHOT_TRIGGER_PREFIXES logic (mirrors handler.ts)
+// Snapshot of the SNAPSHOT_TRIGGER_PREFIXES logic (mirrors index.js)
 // ---------------------------------------------------------------------------
 
 const SNAPSHOT_TRIGGER_PREFIXES = [
+  "write",
+  "delete",
+  "move",
+  "exec",
   "fs.write",
   "fs.delete",
   "fs.move",
@@ -46,51 +48,62 @@ function shouldSnapshot(toolName) {
 
 // ---------------------------------------------------------------------------
 // Minimal register() reimplementation for unit tests
-// (avoids importing openclaw/plugin-sdk which is not installed in CI)
 // ---------------------------------------------------------------------------
 
-function register(api, { plakarInPath = true } = {}) {
+function register(api, { plakarInPath = true, storeAddSuccess = true } = {}) {
   // Graceful degradation 1: plakar in PATH
   if (!plakarInPath) {
     api.logger.warn(
       "[plakar] 'plakar' binary not found in PATH — snapshots disabled.\n" +
       "         Install: https://docs.plakar.io/install\n" +
-      "         Then restart OpenClaw and set plakar.store in your config."
+      "         Then restart OpenClaw and configure plakar.location in your config."
     );
     return;
   }
 
-  // Graceful degradation 2: store configured
-  const store = api.pluginConfig?.store;
-  if (!store) {
+  // Graceful degradation 2: store location configured
+  const config = api.pluginConfig ?? {};
+  const location = config.location ?? config.store;
+  if (!location) {
     api.logger.warn(
-      "[plakar] plakar.store not configured — snapshots disabled.\n" +
-      "         Set it with: openclaw config set plakar.store <path-or-url>"
+      "[plakar] plakar.location not configured — snapshots disabled.\n" +
+      "         Set it with: openclaw config set plugins.entries.openclaw-plugin-plakar.config.location <path-or-url>"
     );
     return;
   }
 
-  api.logger.info("[plakar] plugin registered — store: " + store);
+  // Setup named store (simplified mock)
+  if (storeAddSuccess) {
+    api.logger.info(`[plakar] named store registered: @openclaw-backup → ${location}`);
+  } else {
+    api.logger.warn("[plakar] failed to register named store — falling back to direct path");
+  }
+
+  api.logger.info("[plakar] plugin registered — store: " + location);
 }
 
 // ---------------------------------------------------------------------------
-// Handler logic extracted for testing (mirrors handler.ts)
+// Handler logic extracted for testing (mirrors index.js)
 // ---------------------------------------------------------------------------
 
 async function runHandler(ctx, api, { execFn = execSync } = {}) {
   if (!shouldSnapshot(ctx.toolName)) return { skipped: true };
 
-  const store = api.pluginConfig?.store;
-  const paths = api.pluginConfig?.paths ?? [];
-  const timeout = api.pluginConfig?.timeout ?? 15000;
+  const config = api.pluginConfig ?? {};
+  const storeRef = config.location ?? config.store;
+  const paths = config.paths ?? [];
+  const timeout = config.timeout ?? 15000;
+  const passphrase = config.passphrase;
   const targets = paths.length ? paths : [process.cwd()];
-  const cmd = `plakar -no-agent at ${store} backup ${targets.join(" ")}`;
+  const cmd = `plakar -no-agent -quiet at ${storeRef} backup -no-xattr ${targets.join(" ")}`;
+
+  const env = passphrase ? { PLAKAR_PASSPHRASE: passphrase } : undefined;
 
   try {
-    const stdout = execFn(cmd, { timeout, stdio: "pipe" })?.toString().trim() ?? "";
+    const stdout = execFn(cmd, { timeout, stdio: "pipe", env })?.toString().trim() ?? "";
     const snapshotId = stdout.split(/\s+/)[0] ?? "(unknown)";
     api.logger.info(`[plakar] snapshot ${snapshotId} (${ctx.toolName})`);
-    return { ran: true, cmd };
+    return { ran: true, cmd, env };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     api.logger.warn(`[plakar] snapshot failed for ${ctx.toolName}: ${message}`);
@@ -103,19 +116,19 @@ async function runHandler(ctx, api, { execFn = execSync } = {}) {
 // ---------------------------------------------------------------------------
 
 test("registers without throwing when plakar is absent", () => {
-  const api = makeApi({ store: "/data/store" });
+  const api = makeApi({ location: "/data/store" });
   assert.doesNotThrow(() => register(api, { plakarInPath: false }));
   assert.ok(api._warnings.some((w) => w.includes("not found in PATH")));
 });
 
 // ---------------------------------------------------------------------------
-// Test 2: registers without throwing when plakar.store is not set
+// Test 2: registers without throwing when plakar.location is not set
 // ---------------------------------------------------------------------------
 
-test("registers without throwing when plakar.store is not configured", () => {
-  const api = makeApi({ store: "" });
+test("registers without throwing when plakar.location is not configured", () => {
+  const api = makeApi({ location: "" });
   assert.doesNotThrow(() => register(api, { plakarInPath: true }));
-  assert.ok(api._warnings.some((w) => w.includes("plakar.store not configured")));
+  assert.ok(api._warnings.some((w) => w.includes("plakar.location not configured")));
 });
 
 // ---------------------------------------------------------------------------
@@ -123,7 +136,7 @@ test("registers without throwing when plakar.store is not configured", () => {
 // ---------------------------------------------------------------------------
 
 test("handler runs for fs.write.* tool names", async () => {
-  const api = makeApi({ store: "/data/store" });
+  const api = makeApi({ location: "/data/store" });
   const execFn = () => Buffer.from("abc123 snapshot created");
   const result = await runHandler({ toolName: "fs.write.file" }, api, { execFn });
   assert.equal(result.ran, true);
@@ -135,7 +148,7 @@ test("handler runs for fs.write.* tool names", async () => {
 // ---------------------------------------------------------------------------
 
 test("handler is skipped for fs.read.* tool names", async () => {
-  const api = makeApi({ store: "/data/store" });
+  const api = makeApi({ location: "/data/store" });
   let execCalled = false;
   const execFn = () => { execCalled = true; return Buffer.from(""); };
   const result = await runHandler({ toolName: "fs.read.file" }, api, { execFn });
@@ -148,19 +161,19 @@ test("handler is skipped for fs.read.* tool names", async () => {
 // ---------------------------------------------------------------------------
 
 test("snapshot command is constructed correctly from config values", async () => {
-  const api = makeApi({ store: "/data/plakar-store", paths: ["/workspace", "/etc/app"] });
+  const api = makeApi({ location: "/data/plakar-store", paths: ["/workspace", "/etc/app"] });
   let capturedCmd;
   const execFn = (cmd) => { capturedCmd = cmd; return Buffer.from("snap-42"); };
   await runHandler({ toolName: "shell.exec.run" }, api, { execFn });
-  assert.equal(capturedCmd, "plakar -no-agent at /data/plakar-store backup /workspace /etc/app");
+  assert.equal(capturedCmd, "plakar -no-agent -quiet at /data/plakar-store backup -no-xattr /workspace /etc/app");
 });
 
 // ---------------------------------------------------------------------------
-// Test 6: timeout is respected — non-zero exit does not throw
+// Test 6: timeout/failure does not block the tool call
 // ---------------------------------------------------------------------------
 
 test("timeout/failure does not block the tool call", async () => {
-  const api = makeApi({ store: "/data/store", timeout: 100 });
+  const api = makeApi({ location: "/data/store", timeout: 100 });
   const execFn = () => { throw Object.assign(new Error("ETIMEDOUT"), { code: "ETIMEDOUT" }); };
   let threw = false;
   try {
@@ -170,4 +183,30 @@ test("timeout/failure does not block the tool call", async () => {
   }
   assert.equal(threw, false);
   assert.ok(api._warnings.some((w) => w.includes("snapshot failed")));
+});
+
+// ---------------------------------------------------------------------------
+// Test 7: passphrase is passed as PLAKAR_PASSPHRASE env var
+// ---------------------------------------------------------------------------
+
+test("passphrase is passed as PLAKAR_PASSPHRASE env var", async () => {
+  const api = makeApi({ location: "/data/store", passphrase: "s3cr3t" });
+  let capturedEnv;
+  const execFn = (cmd, opts) => { capturedEnv = opts.env; return Buffer.from("snap-99"); };
+  await runHandler({ toolName: "write.file" }, api, { execFn });
+  assert.equal(capturedEnv?.PLAKAR_PASSPHRASE, "s3cr3t");
+});
+
+// ---------------------------------------------------------------------------
+// Test 8: bare verb prefixes (write, delete, exec) also trigger snapshot
+// ---------------------------------------------------------------------------
+
+test("bare verb prefixes trigger snapshots", async () => {
+  const api = makeApi({ location: "/data/store" });
+  let callCount = 0;
+  const execFn = () => { callCount++; return Buffer.from("snap-id"); };
+  await runHandler({ toolName: "write" }, api, { execFn });
+  await runHandler({ toolName: "delete.something" }, api, { execFn });
+  await runHandler({ toolName: "exec.bash" }, api, { execFn });
+  assert.equal(callCount, 3);
 });
