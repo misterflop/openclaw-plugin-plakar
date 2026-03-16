@@ -16,12 +16,13 @@ This skill covers **restore operations only**. Triggering snapshots is handled
 automatically by the openclaw-plugin-plakar plugin — you do not need to run
 `plakar backup` manually.
 
-## When to offer restore
+## When to use this skill
 
-Offer to restore from a Plakar snapshot when the user says anything like:
-- "undo that", "roll back", "revert to before", "restore my files"
-- "something went wrong, can we go back"
-- "the last tool call broke things"
+Use this skill when the user asks about:
+- Where Plakar backups/snapshots are stored ("où sont les sauvegardes", "where are backups")
+- Listing or browsing snapshots
+- Restoring, undoing, rolling back: "undo that", "roll back", "revert to before", "restore my files"
+- "something went wrong, can we go back", "the last tool call broke things"
 
 ## Prerequisites
 
