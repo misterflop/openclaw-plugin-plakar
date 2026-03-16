@@ -6,15 +6,15 @@ tags:
   - filesystem
   - resilience
 description: >
-  Teaches the agent how to list, inspect, and restore Plakar snapshots.
+  Teaches the agent how to list, inspect, diff, and restore Plakar snapshots.
   Invoke when the user says "undo", "rollback", "restore", or "revert".
 ---
 
 # Plakar Restore Workflows
 
 This skill covers **restore operations only**. Triggering snapshots is handled
-automatically by the openclaw-plugin-plakar plugin — you do not need to call
-`plakar push` manually.
+automatically by the openclaw-plugin-plakar plugin — you do not need to run
+`plakar backup` manually.
 
 ## When to offer restore
 
@@ -27,55 +27,66 @@ Offer to restore from a Plakar snapshot when the user says anything like:
 
 - `plakar` must be in `$PATH`
 - The store path is available in plugin config as `plakar.store`
+- Always pass `-no-agent` to avoid requiring a running plakar agent daemon
 
-Retrieve the store path before running any command:
+## CLI syntax (v1.0.6+)
+
+All commands use the form:
 ```
-store = <value of plakar.store config>
+plakar -no-agent at <store> <command> [options]
 ```
 
-## List available snapshots
+## List all snapshots
 
 ```bash
-plakar -s <store> ls
+plakar -no-agent at <store> ls
 ```
 
-Output includes snapshot IDs, timestamps, and paths. Present the list to the
-user and ask which snapshot to restore.
+Output: snapshot ID, timestamp, size, path. Present the list to the user and
+ask which snapshot to restore from.
 
-## Inspect a snapshot
+## Inspect a snapshot's contents
 
 ```bash
-plakar -s <store> ls <snapshot-id>
+plakar -no-agent at <store> ls <snapshotID>
+plakar -no-agent at <store> ls -recursive <snapshotID>:/path
 ```
 
-Shows the file tree inside a specific snapshot. Useful to confirm it contains
-the expected state before restoring.
+Use this to confirm the snapshot contains the expected state before restoring.
 
-## Restore a specific snapshot
+## Diff two snapshots
 
 ```bash
-plakar -s <store> pull <snapshot-id> <path>
+plakar -no-agent at <store> diff <snapshotID1> <snapshotID2>
+plakar -no-agent at <store> diff -highlight <snapshotID1>:/file <snapshotID2>:/file
 ```
 
-- `<path>` is the directory or file to restore (e.g. `/workspace` or `/workspace/src/app.ts`)
-- Restores files in-place; existing files are overwritten
+Use this to show the user what changed between two points in time.
+
+## Restore a snapshot
+
+Restore all files to the original paths:
+```bash
+plakar -no-agent at <store> restore <snapshotID>
+```
+
+Restore to a specific directory:
+```bash
+plakar -no-agent at <store> restore -to /tmp/restore-here <snapshotID>
+```
+
+Restore a specific path within a snapshot:
+```bash
+plakar -no-agent at <store> restore -to /tmp/restore-here <snapshotID>:/path/to/file
+```
 
 **Always confirm with the user** before running a restore — it overwrites live files.
-
-## Diff two snapshots (if supported)
-
-```bash
-plakar -s <store> diff <snapshot-id-1> <snapshot-id-2>
-```
-
-Use this to show the user what changed between two points in time before
-deciding which snapshot to restore.
 
 ## Example agent interaction
 
 > User: "The last edit broke my config file, can you undo it?"
 
-1. Run `plakar -s <store> ls` and show the user the most recent snapshots
+1. Run `plakar -no-agent at <store> ls` and show the most recent snapshots
 2. Ask: "Should I restore from snapshot `<id>` taken at `<timestamp>`?"
-3. On confirmation: run `plakar -s <store> pull <id> <path>`
+3. On confirmation: `plakar -no-agent at <store> restore -to <original-path> <id>`
 4. Confirm the restore completed and invite the user to verify the file
