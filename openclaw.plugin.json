@@ -2,6 +2,23 @@
   "id": "openclaw-plugin-plakar",
   "name": "Plakar Backup",
   "skills": ["skills/plakar-backup"],
+  "uiHints": {
+    "store": {
+      "label": "Plakar Store",
+      "help": "Plakar store path or URL (e.g. /plakar-store or s3://bucket/prefix)",
+      "placeholder": "/plakar-store"
+    },
+    "paths": {
+      "label": "Snapshot Paths",
+      "help": "Paths to snapshot. Defaults to the agent workspace directory.",
+      "advanced": true
+    },
+    "timeout": {
+      "label": "Snapshot Timeout (ms)",
+      "help": "Maximum time to wait for a snapshot operation. Default: 15000.",
+      "advanced": true
+    }
+  },
   "configSchema": {
     "type": "object",
     "properties": {
