@@ -1,6 +1,6 @@
 {
   "name": "openclaw-plugin-plakar",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "OpenClaw plugin that snapshots the workspace with Plakar before and after every mutating tool call",
   "type": "module",
   "main": "index.js",
