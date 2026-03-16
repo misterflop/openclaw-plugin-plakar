@@ -26,8 +26,23 @@ Offer to restore from a Plakar snapshot when the user says anything like:
 ## Prerequisites
 
 - `plakar` must be in `$PATH`
-- The store path is available in plugin config as `plakar.store`
 - Always pass `-no-agent` to avoid requiring a running plakar agent daemon
+
+## Finding the store path
+
+**Always resolve the store path before running any plakar command:**
+
+```bash
+openclaw config get plugins.entries.openclaw-plugin-plakar.config.store
+```
+
+This prints the configured store path (e.g. `/plakar-store` or `s3://bucket/prefix`).
+Use that value as `<store>` in every command below.
+
+If the command returns nothing, the plugin is not configured — tell the user to run:
+```bash
+openclaw config set plugins.entries.openclaw-plugin-plakar.config.store <path>
+```
 
 ## CLI syntax (v1.0.6+)
 
