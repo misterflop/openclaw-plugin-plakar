@@ -1,13 +1,14 @@
 ---
 slug: plakar-backup
-name: Plakar Restore Workflows
+name: Plakar Backup
 tags:
   - backup
   - filesystem
   - resilience
 description: >
-  Teaches the agent how to list, inspect, diff, and restore Plakar snapshots.
-  Invoke when the user says "undo", "rollback", "restore", or "revert".
+  Plakar backup and restore workflows. Use when the user asks about Plakar
+  snapshots, where backups are stored, how to list or restore snapshots, or
+  says "undo", "rollback", "restore", or "revert".
 ---
 
 # Plakar Restore Workflows
