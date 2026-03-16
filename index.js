@@ -56,9 +56,13 @@ function makeSnapshotHandler(storeRef, api) {
     if (!shouldSnapshot) return;
 
     const paths = api.pluginConfig?.paths ?? [];
+    const extraPaths = api.pluginConfig?.extraPaths ?? [];
     const timeout = api.pluginConfig?.timeout ?? 15000;
     const passphrase = api.pluginConfig?.passphrase;
-    const targets = paths.length ? paths : [process.cwd()];
+    // `paths` overrides everything; `extraPaths` appends to the default workspace dir
+    const targets = paths.length
+      ? paths
+      : [process.cwd(), ...extraPaths];
     const cmd = `plakar -no-agent -quiet at ${storeRef} backup -no-xattr ${targets.join(" ")}`;
 
     const env = passphrase

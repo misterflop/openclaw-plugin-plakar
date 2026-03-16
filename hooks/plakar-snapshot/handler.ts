@@ -29,10 +29,11 @@ const handler: HookHandler<ToolCallContext> = async (ctx, api) => {
   if (!storeRef) return;
 
   const paths = (config.paths as string[] | undefined) ?? [];
+  const extraPaths = (config.extraPaths as string[] | undefined) ?? [];
   const timeout = (config.timeout as number | undefined) ?? 15000;
   const passphrase = config.passphrase as string | undefined;
 
-  const targets = paths.length ? paths : [process.cwd()];
+  const targets = paths.length ? paths : [process.cwd(), ...extraPaths];
   const cmd = `plakar -no-agent -quiet at ${storeRef} backup -no-xattr ${targets.join(" ")}`;
 
   const env = passphrase

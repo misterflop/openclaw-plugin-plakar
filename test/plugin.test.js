@@ -6,13 +6,13 @@ import { execSync } from "node:child_process";
 // Minimal mock of the OpenClaw plugin API
 // ---------------------------------------------------------------------------
 
-function makeApi({ location = "", paths = [], timeout = 15000, passphrase = "", s3AccessKey = "", s3SecretKey = "" } = {}) {
+function makeApi({ location = "", paths = [], extraPaths = [], timeout = 15000, passphrase = "", s3AccessKey = "", s3SecretKey = "" } = {}) {
   const warnings = [];
   const infos = [];
   const hooks = [];
 
   return {
-    pluginConfig: { location, paths, timeout, passphrase, s3AccessKey, s3SecretKey },
+    pluginConfig: { location, paths, extraPaths, timeout, passphrase, s3AccessKey, s3SecretKey },
     logger: {
       warn(msg) { warnings.push(msg); },
       info(msg) { infos.push(msg); },
@@ -92,9 +92,10 @@ async function runHandler(ctx, api, { execFn = execSync } = {}) {
   const config = api.pluginConfig ?? {};
   const storeRef = config.location ?? config.store;
   const paths = config.paths ?? [];
+  const extraPaths = config.extraPaths ?? [];
   const timeout = config.timeout ?? 15000;
   const passphrase = config.passphrase;
-  const targets = paths.length ? paths : [process.cwd()];
+  const targets = paths.length ? paths : [process.cwd(), ...extraPaths];
   const cmd = `plakar -no-agent -quiet at ${storeRef} backup -no-xattr ${targets.join(" ")}`;
 
   const env = passphrase ? { PLAKAR_PASSPHRASE: passphrase } : undefined;
@@ -209,4 +210,36 @@ test("bare verb prefixes trigger snapshots", async () => {
   await runHandler({ toolName: "delete.something" }, api, { execFn });
   await runHandler({ toolName: "exec.bash" }, api, { execFn });
   assert.equal(callCount, 3);
+});
+
+// ---------------------------------------------------------------------------
+// Test 9: extraPaths are appended to cwd, not replacing it
+// ---------------------------------------------------------------------------
+
+test("extraPaths appends to workspace dir, not replaces it", async () => {
+  const api = makeApi({ location: "/data/store", extraPaths: ["/data/postgres", "/etc/app"] });
+  let capturedCmd;
+  const execFn = (cmd) => { capturedCmd = cmd; return Buffer.from("snap-id"); };
+  await runHandler({ toolName: "write.file" }, api, { execFn });
+  assert.ok(capturedCmd.includes(process.cwd()), "should include cwd");
+  assert.ok(capturedCmd.includes("/data/postgres"), "should include extra path 1");
+  assert.ok(capturedCmd.includes("/etc/app"), "should include extra path 2");
+});
+
+// ---------------------------------------------------------------------------
+// Test 10: paths (override) replaces cwd + extraPaths entirely
+// ---------------------------------------------------------------------------
+
+test("paths override replaces workspace and extraPaths entirely", async () => {
+  const api = makeApi({
+    location: "/data/store",
+    paths: ["/override/only"],
+    extraPaths: ["/data/postgres"],
+  });
+  let capturedCmd;
+  const execFn = (cmd) => { capturedCmd = cmd; return Buffer.from("snap-id"); };
+  await runHandler({ toolName: "write.file" }, api, { execFn });
+  assert.ok(capturedCmd.includes("/override/only"), "should include override path");
+  assert.ok(!capturedCmd.includes(process.cwd()), "should NOT include cwd");
+  assert.ok(!capturedCmd.includes("/data/postgres"), "should NOT include extraPaths when paths is set");
 });

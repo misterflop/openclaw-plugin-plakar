@@ -120,16 +120,29 @@ plakar -no-agent at @openclaw-backup restore -to /tmp/restore-here <snapshotID>:
 
 ## Plugin configuration reference
 
-| Config key      | Description                                      | Required |
-|-----------------|--------------------------------------------------|----------|
-| `location`      | Store path or URL (`/path` or `s3://bucket/pfx`) | Yes      |
-| `passphrase`    | Encryption passphrase (sensitive)                | No       |
-| `s3AccessKey`   | S3 / MinIO access key                            | S3 only  |
-| `s3SecretKey`   | S3 / MinIO secret key (sensitive)                | S3 only  |
-| `s3UseTls`      | Enable TLS for S3 connections (default: true)    | No       |
-| `s3StorageClass`| S3 storage class (e.g. STANDARD, GLACIER)        | No       |
-| `paths`         | Paths to snapshot (default: workspace dir)       | No       |
-| `timeout`       | Snapshot timeout in ms (default: 15000)          | No       |
+| Config key      | Description                                                      | Required |
+|-----------------|------------------------------------------------------------------|----------|
+| `location`      | Store path or URL (`/path` or `s3://bucket/pfx`)                 | Yes      |
+| `passphrase`    | Encryption passphrase (sensitive)                                | No       |
+| `s3AccessKey`   | S3 / MinIO access key                                            | S3 only  |
+| `s3SecretKey`   | S3 / MinIO secret key (sensitive)                                | S3 only  |
+| `s3UseTls`      | Enable TLS for S3 connections (default: true)                    | No       |
+| `s3StorageClass`| S3 storage class (e.g. STANDARD, GLACIER)                        | No       |
+| `extraPaths`    | Extra paths to snapshot alongside the workspace (e.g. `/data/pg`)| No       |
+| `paths`         | Override: replaces workspace + extraPaths entirely               | No       |
+| `timeout`       | Snapshot timeout in ms (default: 15000)                          | No       |
+
+### Snapshotting multiple datasets
+
+By default the plugin snapshots the **workspace directory** (`cwd`). If OpenClaw
+may modify data outside the workspace (e.g. a database volume, a shared config
+directory), add those paths to `extraPaths`:
+
+```bash
+openclaw config set plugins.entries.openclaw-plugin-plakar.config.extraPaths '["/data/postgres", "/etc/myapp"]'
+```
+
+Every snapshot will then cover `[cwd, /data/postgres, /etc/myapp]` automatically.
 
 ## Example agent interaction
 

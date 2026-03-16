@@ -34,9 +34,13 @@
       "help": "S3 storage class (e.g. STANDARD, STANDARD_IA, GLACIER). Leave empty for default.",
       "advanced": true
     },
+    "extraPaths": {
+      "label": "Extra Snapshot Paths",
+      "help": "Additional paths to include in every snapshot alongside the workspace directory (e.g. /data/postgres, /var/app). Use this to protect datasets that OpenClaw may modify outside its workspace."
+    },
     "paths": {
-      "label": "Snapshot Paths",
-      "help": "Paths to snapshot. Defaults to the agent workspace directory.",
+      "label": "Override Snapshot Paths",
+      "help": "If set, replaces the default workspace + extraPaths with exactly these paths. Useful when you want full control over what gets snapshotted.",
       "advanced": true
     },
     "timeout": {
@@ -73,10 +77,16 @@
         "type": "string",
         "description": "S3 storage class (e.g. STANDARD, STANDARD_IA, GLACIER)"
       },
+      "extraPaths": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Additional paths to snapshot alongside the workspace directory (e.g. /data/postgres, /var/app).",
+        "default": []
+      },
       "paths": {
         "type": "array",
         "items": { "type": "string" },
-        "description": "Paths to snapshot. Defaults to the agent workspace directory.",
+        "description": "Override: if set, replaces workspace + extraPaths entirely. Leave empty to use workspace + extraPaths.",
         "default": []
       },
       "timeout": {
