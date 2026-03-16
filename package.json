@@ -1,0 +1,30 @@
+{
+  "name": "openclaw-plugin-plakar",
+  "version": "0.1.0",
+  "description": "OpenClaw plugin that snapshots the workspace with Plakar before and after every mutating tool call",
+  "type": "module",
+  "main": "index.js",
+  "engines": {
+    "node": ">=22"
+  },
+  "keywords": [
+    "openclaw",
+    "plakar",
+    "backup",
+    "plugin"
+  ],
+  "files": [
+    "index.js",
+    "hooks/",
+    "skills/",
+    "openclaw.plugin.json",
+    "README.md"
+  ],
+  "openclaw": {
+    "extensions": ["index.js"]
+  },
+  "peerDependencies": {
+    "openclaw": "*"
+  },
+  "license": "MIT"
+}

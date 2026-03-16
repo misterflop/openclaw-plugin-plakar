@@ -1,0 +1,25 @@
+{
+  "id": "openclaw-plugin-plakar",
+  "name": "Plakar Backup",
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "store": {
+        "type": "string",
+        "description": "Plakar store path or URL (e.g. /data/plakar-store or s3://bucket/prefix)"
+      },
+      "paths": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Paths to snapshot. Defaults to the agent workspace directory.",
+        "default": []
+      },
+      "timeout": {
+        "type": "integer",
+        "description": "Snapshot timeout in milliseconds",
+        "default": 15000
+      }
+    },
+    "required": []
+  }
+}
