@@ -12,14 +12,7 @@ function makeApi({ store = "", paths = [], timeout = 15000 } = {}) {
   const hooks = [];
 
   return {
-    config: {
-      get(key) {
-        if (key === "plakar.store") return store;
-        if (key === "plakar.paths") return paths;
-        if (key === "plakar.timeout") return timeout;
-        return undefined;
-      },
-    },
+    pluginConfig: { store, paths, timeout },
     logger: {
       warn(msg) { warnings.push(msg); },
       info(msg) { infos.push(msg); },
@@ -68,7 +61,7 @@ function register(api, { plakarInPath = true } = {}) {
   }
 
   // Graceful degradation 2: store configured
-  const store = api.config.get("plakar.store");
+  const store = api.pluginConfig?.store;
   if (!store) {
     api.logger.warn(
       "[plakar] plakar.store not configured — snapshots disabled.\n" +
@@ -87,11 +80,11 @@ function register(api, { plakarInPath = true } = {}) {
 async function runHandler(ctx, api, { execFn = execSync } = {}) {
   if (!shouldSnapshot(ctx.toolName)) return { skipped: true };
 
-  const store = api.config.get("plakar.store");
-  const paths = api.config.get("plakar.paths") ?? [];
-  const timeout = api.config.get("plakar.timeout") ?? 15000;
+  const store = api.pluginConfig?.store;
+  const paths = api.pluginConfig?.paths ?? [];
+  const timeout = api.pluginConfig?.timeout ?? 15000;
   const targets = paths.length ? paths : [process.cwd()];
-  const cmd = `plakar -s ${store} push ${targets.join(" ")}`;
+  const cmd = `plakar -no-agent at ${store} backup ${targets.join(" ")}`;
 
   try {
     const stdout = execFn(cmd, { timeout, stdio: "pipe" })?.toString().trim() ?? "";
@@ -159,7 +152,7 @@ test("snapshot command is constructed correctly from config values", async () =>
   let capturedCmd;
   const execFn = (cmd) => { capturedCmd = cmd; return Buffer.from("snap-42"); };
   await runHandler({ toolName: "shell.exec.run" }, api, { execFn });
-  assert.equal(capturedCmd, "plakar -s /data/plakar-store push /workspace /etc/app");
+  assert.equal(capturedCmd, "plakar -no-agent at /data/plakar-store backup /workspace /etc/app");
 });
 
 // ---------------------------------------------------------------------------

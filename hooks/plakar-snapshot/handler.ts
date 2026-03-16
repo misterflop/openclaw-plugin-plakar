@@ -21,12 +21,12 @@ const handler: HookHandler<ToolCallContext> = async (ctx, api) => {
   );
   if (!shouldSnapshot) return;
 
-  const store = api.config.get("plakar.store") as string;
-  const paths = (api.config.get("plakar.paths") as string[] | undefined) ?? [];
-  const timeout = (api.config.get("plakar.timeout") as number | undefined) ?? 15000;
+  const store = (api as any).pluginConfig?.store as string;
+  const paths = ((api as any).pluginConfig?.paths as string[] | undefined) ?? [];
+  const timeout = ((api as any).pluginConfig?.timeout as number | undefined) ?? 15000;
 
   const targets = paths.length ? paths : [process.cwd()];
-  const cmd = `plakar -s ${store} push ${targets.join(" ")}`;
+  const cmd = `plakar at ${store} backup ${targets.join(" ")}`;
 
   try {
     const stdout = execSync(cmd, { timeout, stdio: "pipe" }).toString().trim();

@@ -1,5 +1,35 @@
 import { execSync } from "node:child_process";
-import { registerPluginHooksFromDir } from "openclaw/plugin-sdk";
+
+const SNAPSHOT_TRIGGER_PREFIXES = [
+  "fs.write",
+  "fs.delete",
+  "fs.move",
+  "shell.exec",
+];
+
+function makeSnapshotHandler(store, api) {
+  return async (ctx) => {
+    const shouldSnapshot = SNAPSHOT_TRIGGER_PREFIXES.some((p) =>
+      ctx.toolName.startsWith(p)
+    );
+    if (!shouldSnapshot) return;
+
+    const paths = api.pluginConfig?.paths ?? [];
+    const timeout = api.pluginConfig?.timeout ?? 15000;
+    const targets = paths.length ? paths : [process.cwd()];
+    const cmd = `plakar -no-agent at ${store} backup ${targets.join(" ")}`;
+
+    try {
+      const stdout = execSync(cmd, { timeout, stdio: "pipe" }).toString().trim();
+      const snapshotId = stdout.split(/\s+/)[0] ?? "(unknown)";
+      api.logger.info(`[plakar] snapshot ${snapshotId} (${ctx.toolName})`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      api.logger.warn(`[plakar] snapshot failed for ${ctx.toolName}: ${message}`);
+      // Graceful degradation 3: never block the tool call
+    }
+  };
+}
 
 export default {
   id: "openclaw-plugin-plakar",
@@ -19,7 +49,7 @@ export default {
     }
 
     // Graceful degradation 2: store must be configured
-    const store = api.config.get("plakar.store");
+    const store = api.pluginConfig?.store;
     if (!store) {
       api.logger.warn(
         "[plakar] plakar.store not configured — snapshots disabled.\n" +
@@ -29,6 +59,9 @@ export default {
     }
 
     api.logger.info("[plakar] plugin registered — store: " + store);
-    registerPluginHooksFromDir(api, "./hooks");
+
+    const handler = makeSnapshotHandler(store, api);
+    api.on("before_tool_call", handler);
+    api.on("after_tool_call", handler);
   },
 };
